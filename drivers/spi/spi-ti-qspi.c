@@ -181,7 +181,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 	struct ti_qspi	*qspi = spi_master_get_devdata(spi->master);
 	struct ti_qspi_regs *ctx_reg = &qspi->ctx_reg;
 	int clk_div = 0, ret;
-	u32 clk_ctrl_reg, clk_rate, clk_mask, memval = 0;
+	u32 clk_ctrl_reg, clk_rate, clk_mask, memval = 0, mode;
 	qspi->dc = 0;
 
 	if (spi->master->busy) {
@@ -213,7 +213,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 			qspi->spi_max_frequency, clk_div);
 
 	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
 		return ret;
 	}
@@ -240,13 +240,14 @@ static int ti_qspi_setup(struct spi_device *spi)
 	ti_qspi_write(qspi, qspi->dc, QSPI_SPI_DC_REG);
 
 	if (qspi->memory_mapped) {
-		switch (spi->mode) {
-		case SPI_TX_DUAL:
+		mode = spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD);
+		switch (mode) {
+		case SPI_RX_DUAL:
 			memval |= (QSPI_CMD_DUAL_RD | QSPI_SETUP0_A_BYTES |
 				QSPI_SETUP0_8_BITS | QSPI_SETUP0_RD_DUAL |
 				QSPI_CMD_WRITE | QSPI_NUM_DUMMY_BITS);
 			break;
-		case SPI_TX_QUAD:
+		case SPI_RX_QUAD:
 			memval |= (QSPI_CMD_QUAD_RD | QSPI_SETUP0_A_BYTES |
 				QSPI_SETUP0_8_BITS | QSPI_SETUP0_RD_QUAD |
 				QSPI_CMD_WRITE | QSPI_NUM_DUMMY_BITS);
@@ -643,9 +644,24 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
-	struct	ti_qspi *qspi = platform_get_drvdata(pdev);
+	struct spi_master *master;
+	struct ti_qspi *qspi;
+	int ret;
+
+	master = platform_get_drvdata(pdev);
+	qspi = spi_master_get_devdata(master);
+
+	ret = pm_runtime_get_sync(qspi->dev);
+	if (ret < 0) {
+		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
+		return ret;
+	}
 
 	ti_qspi_write(qspi, QSPI_WC_INT_DISABLE, QSPI_INTR_ENABLE_CLEAR_REG);
+
+	pm_runtime_put(qspi->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	spi_unregister_master(qspi->master);
 
 	return 0;

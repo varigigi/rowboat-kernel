@@ -20,11 +20,29 @@
 		reg = <0x80000000 0x7F000000>; /* 2032 MB */
 	};
 
-	vmmcsd_fixed: fixedregulator-mmcsd {
+	vmmc_mmc1: fixedregulator-mmc1 {
 		compatible = "regulator-fixed";
-		regulator-name = "vmmcsd_fixed";
+		regulator-name = "vmmc_mmc1";
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
+		vin-supply = <&regen3_reg>;
+	};
+
+	vmmc_mmc2: fixedregulator-mmc2{
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc_mmc2";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 12 0>;	/* gpio5_140 */
+		startup-delay-us = <70000>;
+		enable-active-high;
 	};
 
 	/* HS USB Host PHY on PORT 2 */
@@ -73,6 +91,11 @@
 			"AFML", "Line In",
 			"AFMR", "Line In";
 	};
+
+	wlcore {
+		compatible = "wlcore";
+		gpio = <14>;
+	};
 };
 
 &omap5_pmx_core {
@@ -87,6 +110,7 @@
 			&dss_hdmi_pins
 			&tpd12s015_pins
 			&palmas_pins
+			&wl_pins
 	>;
 
 	twl6040_pins: pinmux_twl6040_pins {
@@ -140,6 +164,28 @@
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
 			0x194 (PIN_INPUT | MUX_MODE6)		/* gpio5_152  */
+		>;
+	};
+
+	mmc1_muxpu: pinmux_mmc1_muxpu {
+		pinctrl-single,pins = <
+			0x1a2 (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard clk */
+			0x1a4 (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard cmd */
+			0x1a6 (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard dat2*/
+			0x1a8 (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard dat3*/
+			0x1aa (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard dat0*/
+			0x1ac (PIN_INPUT_PULLUP | MUX_MODE0)		/* sdcard dat1*/
+		>;
+	};
+
+	mmc1_muxpd: pinmux_mmc1_muxpd {
+		pinctrl-single,pins = <
+			0x1a2 (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard clk */
+			0x1a4 (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard cmd */
+			0x1a6 (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard dat2*/
+			0x1a8 (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard dat3*/
+			0x1aa (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard dat0*/
+			0x1ac (PIN_INPUT_PULLDOWN | MUX_MODE0)		/* sdcard dat1*/
 		>;
 	};
 
@@ -233,12 +279,25 @@
 			0x140 (PIN_INPUT_PULLUP | MUX_MODE1)	/* MSECURE */
 		>;
 	};
+
+	wl_pins: pinmux_wl_pins {
+		pinctrl-single,pins = <
+			0x164 0x118	/* WLSDIO_CLK: INPUTENABLE | PULLUP | MODE0 */
+			0x166 0x118	/* WLSDIO_CMD: INPUTENABLE | PULLUP | MODE0 */
+			0x168 0x118	/* WLSDIO_DAT0: INPUTENABLE | PULLUP | MODE0 */
+			0x16a 0x118	/* WLSDIO_DAT1: INPUTENABLE | PULLUP | MODE0 */
+			0x16c 0x118	/* WLSDIO_DAT2: INPUTENABLE | PULLUP | MODE0 */
+			0x16e 0x118	/* WLSDIO_DAT3: INPUTENABLE | PULLUP | MODE0 */
+			0x17c 0x6	/* WLAN_EN: OUTPUT | MODE6 */
+		>;
+	};
 };
 
 &omap5_pmx_wkup {
 	pinctrl-names = "default";
 	pinctrl-0 = <
 			&usbhost_wkup_pins
+			&wlirq_pins
 	>;
 
 	usbhost_wkup_pins: pinmux_usbhost_wkup_pins {
@@ -246,24 +305,37 @@
 			0x1A (PIN_OUTPUT | MUX_MODE0) /* fref_clk1_out, USB hub clk */
 		>;
 	};
+
+	wlirq_pins: pinmux_wlirq_pins {
+		pinctrl-single,pins = <
+			0x0 0x4106	/* WLAN_IRQ: INPUT | WAKEUP_ENABLE | MODE 6 */
+		>;
+	};
 };
 
 &mmc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "muxpu", "muxpd";
 	pinctrl-0 = <&mmc1_pins>;
-	vmmc-supply = <&ldo9_reg>;
+	pinctrl-1 = <&mmc1_muxpu>;
+	pinctrl-2 = <&mmc1_muxpd>;
+	vmmc-supply = <&vmmc_mmc1>;
+	vmmc_aux-supply = <&ldo9_reg>;
+	pbias-supply = <&pbias_regulator>;
 	bus-width = <4>;
 	cd-gpios = <&gpio5 24 0>; /* gpio 152 */
 };
 
 &mmc2 {
-	vmmc-supply = <&vmmcsd_fixed>;
+	vmmc-supply = <&vmmc_mmc2>;
 	bus-width = <8>;
 	ti,non-removable;
 };
 
 &mmc3 {
+	vmmc-supply = <&vmmcwl_fixed>;
 	bus-width = <4>;
+	cap-power-off-card;
+	keep-power-in-suspend;
 	ti,non-removable;
 };
 
@@ -491,7 +563,6 @@
 				regen3_reg: regen3 {
 					/* REGEN3 controls LDO9 supply to card */
 					regulator-name = "regen3";
-					regulator-always-on;
 					regulator-boot-on;
 				};
 			};

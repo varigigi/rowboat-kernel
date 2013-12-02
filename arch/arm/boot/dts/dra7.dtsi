@@ -129,8 +129,8 @@
 			crossbar-name = "dma-req";
 			reg = <0x4a002b78 0x0100>;
 			reg-width = <16>;
-			crossbar-lines = "dma-req", "mcasp3-rx", <0x7e 0x84 0xfc>,
-					 "dma-req", "mcasp3-tx", <0x7d 0x85 0xfa>;
+			crossbar-lines = "dma-req", "mcasp3-tx", <124 133 0xf8>,
+					 "dma-req", "mcasp3-rx", <125 132 0xfa>;
 		};
 
 		prcm: prcm@4ae06000 {
@@ -204,6 +204,20 @@
 			compatible = "ti,dra752-bandgap";
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 			#thermal-sensor-cells = <1>;
+		};
+
+		tisyscon: tisyscon@4A100600 {
+			compatible = "ti,control-syscon", "syscon", "simple-bus";
+			reg = <0x4A002E00 0x4>;
+				pbias_regulator: pbias_regulator {
+					compatible = "regulator-pbias-omap5";
+					pbias-reg-offset = <0>;
+					regulator-name = "pbias_regulator";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-boot-on;
+					startup-delay-us = <10>;
+			};
 		};
 
 		sdma: dma-controller@4a056000 {
@@ -700,6 +714,12 @@
 			ti,hwmods = "wd_timer2";
 			clocks = <&sys_32k_ck>;
 			clock-names = "fck";
+		};
+
+		hwspinlock: spinlock@4a0f6000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x4a0f6000 0x1000>;
+			ti,hwmods = "spinlock";
 		};
 
 		i2c1: i2c@48070000 {
@@ -1232,6 +1252,8 @@
 		mac: ethernet@4a100000 {
 			compatible = "ti,cpsw";
 			ti,hwmods = "gmac";
+			clocks = <&dpll_gmac_ck>, <&gmac_gmii_ref_clk_div>;
+			clock-names = "fck", "cpts";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
@@ -1321,6 +1343,32 @@
 			dma-names = "tx", "rx";
 			clocks = <&l3_iclk_div>;
 			clock-names = "fck";
+		};
+
+		atl_clkin: atl@0x4843c000 {
+			compatible = "ti,dra7-atl-clock";
+			reg = <0x4843c000 0x3ff>;
+			ti,hwmods = "atl";
+			#clock-cells = <1>;
+			clocks = <&atl_gfclk_mux>;
+			clock-names = "fck";
+			status = "disabled";
+		};
+
+		mcasp3: mcasp@48468000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp3";
+			reg = <0x48468000 0x2000>;
+			reg-names = "mpu";
+			interrupts = <0 157 0x4>,	/* Crossbar 151 */
+				     <0 158 0x4>;	/* Crossbar 150 */
+			interrupts-names = "tx", "rx";
+			dmas =	<&sdma 125>,		/* Crossbar 133 */
+				<&sdma 126>;		/* Crossbar 132 */
+			dma-names = "tx", "rx";
+			clocks = <&mcasp3_ahclkx_mux>;
+			clock-names = "fck";
+			status = "disabled";
 		};
 	};
 

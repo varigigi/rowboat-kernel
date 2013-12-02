@@ -25,6 +25,8 @@
 		serial0 = &uart0;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		d_can0 = &dcan0;
+		d_can1 = &dcan1;
 	};
 
 	cpus {
@@ -34,6 +36,18 @@
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0>;
+
+			operating-points = <
+				/* kHz    uV */
+				300000	950000
+				600000	1100000
+				720000	1200000
+			>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 
@@ -393,6 +407,12 @@
 			status = "disabled";
 		};
 
+		hwspinlock: spinlock@480ca000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x480ca000 0x1000>;
+			ti,hwmods = "spinlock";
+		};
+
 		i2c0: i2c@44e0b000 {
 			compatible = "ti,am4372-i2c","ti,omap4-i2c";
 			reg = <0x44e0b000 0x1000>;
@@ -403,10 +423,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-
-			tps: tps@24 {
-				reg = <0x24>;
-			};
 		};
 
 		i2c1: i2c@4802a000 {
@@ -777,6 +793,7 @@
 			clock-names = "fck";
 			reg = <0x481cc000 0x2000
 				0x44e10644 0x4>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -787,6 +804,7 @@
 			clock-names = "fck";
 			reg = <0x481d0000 0x2000
 				0x44e10644 0x4>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -814,13 +832,13 @@
 			#reset-cells = <1>;
 		};
 
-                sgx@0x56000000 {
-                compatible = "ti,sgx";
-                ti,hwmods = "gfx";
-                reg = <0x56000000 0x1000000>;
-                interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-                resets = <&prcm 0>;
-                };
+		sgx@0x56000000 {
+			compatible = "ti,sgx";
+			ti,hwmods = "gfx";
+			reg = <0x56000000 0x1000000>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&prcm 0>;
+		};
 
 		rng: rng@48310000 {
 			compatible = "ti,omap4-rng";
@@ -985,6 +1003,39 @@
 
 		};
 
+		mcasp0: mcasp@48038000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp0";
+			reg = <0x48038000 0x2000>,
+			      <0x46000000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 8
+				&edma 9>;
+			dma-names = "tx", "rx";
+			clocks = <&mcasp0_fck>;
+			clock-names = "fck";
+		};
+
+		mcasp1: mcasp@4803C000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x4803C000 0x2000>,
+			      <0x46400000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 10
+				&edma 11>;
+			dma-names = "tx", "rx";
+			clocks = <&mcasp1_fck>;
+			clock-names = "fck";
+		};
 	};
 
 	clocks {
@@ -995,5 +1046,3 @@
 	};
 
 };
-
-/include/ "tps65218.dtsi"

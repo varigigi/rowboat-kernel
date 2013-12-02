@@ -27,6 +27,23 @@
 		enable-active-high;
 	};
 
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio1 23 0>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	wlcore {
+		compatible = "wlcore";
+		gpio = <31>;
+		pinctrl-names = "default";
+	};
+
 	aliases {
 		display0 = &lcd0;
 		display1 = &hdmi0;
@@ -36,7 +53,6 @@
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		video-source = <&dpi>;
 		data-lines = <24>;
-		gpios = <0>;			    /* No Enable GPIO */
 		panel-timing {
 			clock-frequency = <33000000>;
 			hactive = <800>;
@@ -98,11 +114,16 @@
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
 		default-brightness-level = <8>;
 	};
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2>;
+		};
+	};
 };
 
 &am43xx_pinmux {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dss_pinctrl>;
+
 	cpsw_default: cpsw_default {
 		pinctrl-single,pins = <
 			/* Slave 1 */
@@ -152,6 +173,18 @@
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
 			0x160 (PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
+		>;
+	};
+
+	mmc2_pins: pinmux_mmc2_pins {
+		pinctrl-single,pins = <
+			0x210 (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data2.mmc1_clk  */
+			0x214 (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data3.mmc1_cmd  */
+			0x218 (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data4.mmc1_dat0 */
+			0x21c (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data5.mmc1_dat1 */
+			0x220 (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data6.mmc1_dat2 */
+			0x224 (PIN_INPUT_PULLUP | MUX_MODE1)      /*cam0_data7.mmc1_dat3 */
+			0x05c (PIN_OUTPUT | MUX_MODE7)            /*gpmc_a7.gpio1_23 */
 		>;
 	};
 
@@ -243,6 +276,12 @@
 			0x164 MUX_MODE0		/* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
 		>;
 	};
+
+	wlirq_pins: pinmux_wlirq_pins {
+		pinctrl-single,pins = <
+			0x74 (PIN_INPUT | WAKEUP_ENABLE | MUX_MODE7)   /*gpmc_wpn.gpio0_31 */
+		>;
+	};
 };
 
 &gpio0 {
@@ -259,6 +298,11 @@
 
 &gpio3 {
 	status = "okay";
+};
+
+&dpi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_pinctrl>;
 };
 
 &qspi {
@@ -280,6 +324,7 @@
 };
 
 &mac {
+	slaves = <1>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
@@ -298,11 +343,6 @@
 	phy-mode = "rmii";
 };
 
-&cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
-	phy-mode = "rmii";
-};
-
 &phy_sel {
 	rmii-clock-ext;
 };
@@ -316,11 +356,22 @@
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 };
 
+&mmc2 {
+	status = "okay";
+	vmmc-supply = <&vmmcwl_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	ti,non-removable;
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <100000>;
 
 	pixcir_ts@5c {
 		compatible = "pixcir,pixcir_tangoc";
@@ -334,6 +385,47 @@
 
 		x-size = <1024>;
 		y-size = <600>;
+	};
+
+	tps65218: tps65218@24 {
+		reg = <0x24>;
+		compatible = "ti,tps65218";
+		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
+		interrupt-parent = <&gic>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		dcdc1: regulator-dcdc1 {
+			compatible = "ti,tps65218-dcdc1";
+			/* VDD_CORE voltage limits min of OPP50 and max of OPP100 */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <912000>;
+			regulator-max-microvolt = <1144000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc2: regulator-dcdc2 {
+			compatible = "ti,tps65218-dcdc2";
+			/* VDD_MPU voltage limits min of OPP50 and max of OPP_NITRO */
+			regulator-name = "vdd_mpu";
+			regulator-min-microvolt = <912000>;
+			regulator-max-microvolt = <1378000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc3: regulator-dcdc3 {
+			compatible = "ti,tps65218-dcdc3";
+		};
+
+		ldo1: regulator-ldo1 {
+			compatible = "ti,tps65218-ldo1";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
 	};
 };
 

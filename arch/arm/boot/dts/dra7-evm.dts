@@ -9,6 +9,7 @@
 
 #include "dra7.dtsi"
 #include <dt-bindings/pinctrl/dra7xx.h>
+#include <dt-bindings/clk/ti-dra7-atl.h>
 
 / {
 	model = "TI DRA7";
@@ -29,11 +30,43 @@
 		gpios = <&gpio21 2 0>;
 	};
 
-	mmc2_3v3: fixedregulator-mmc2 {
+	evm_3v3_sd: fixedregulator-sd {
 		compatible = "regulator-fixed";
-		regulator-name = "mmc2_3v3";
+		regulator-name = "evm_3v3_sd";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio21 5 0>;
+	};
+
+	evm_3v3_sw: fixedregulator-evm_3v3_sw {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_3v3_sw";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	aic_dvdd_1v8: fixedregulator-aic-dvdd-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "aic-dvdd-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+	};
+
+	sound {
+		compatible = "ti,dra7xx-evm-audio";
+		ti,model = "DRA7xx-EVM";
+		ti,audio-codec = <&tlv320aic3106>;
+		ti,mcasp-controller = <&mcasp3>;
+		ti,codec-clock-rate = <5644800>;
+		clocks = <&atl_clkin 2>;
+		clock-names = "ti,codec-clock";
+		ti,audio-routing =
+			"Headphone Jack",       "HPLOUT",
+			"Headphone Jack",       "HPROUT",
+			"LINE1L",               "Line In",
+			"LINE1R",               "Line In";
 	};
 };
 
@@ -42,7 +75,15 @@
 	pinctrl-0 = <
 		&vout1_pins
 		&irq_pins
+		&atl_pins
 	>;
+
+	atl_pins: pinmux_atl_pins {
+		pinctrl-single,pins = <
+			0x298 0x00000005	/* xref_clk1.atl_clk1 OUTPUT | MODE5 */
+			0x29c 0x00000005	/* xref_clk2.atl_clk2 OUTPUT | MODE5 */
+		>;
+	};
 
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
@@ -77,6 +118,28 @@
 		>;
 	};
 
+	mmc1_muxpu: pinmux_mmc1_muxpu {
+		pinctrl-single,pins = <
+			0x354 0x60000	/* mmc1_clk.clk INPUT PULLUP | MODE0 */
+			0x358 0x60000	/* mmc1_cmd.cmd INPUT PULLUP | MODE0 */
+			0x35c 0x60000	/* mmc1_dat0.dat0 INPUT PULLUP | MODE0 */
+			0x360 0x60000	/* mmc1_dat1.dat1 INPUT PULLUP | MODE0 */
+			0x364 0x60000	/* mmc1_dat2.dat2 INPUT PULLUP | MODE0 */
+			0x368 0x60000	/* mmc1_dat3.dat3 INPUT PULLUP | MODE0 */
+		>;
+	};
+
+	mmc1_muxpd: pinmux_mmc1_muxpd {
+		pinctrl-single,pins = <
+			0x354 0x20000	/* mmc1_clk.clk INPUT PULLUP | MODE0 */
+			0x358 0x20000	/* mmc1_cmd.cmd INPUT PULLUP | MODE0 */
+			0x35c 0x20000	/* mmc1_dat0.dat0 INPUT PULLUP | MODE0 */
+			0x360 0x20000	/* mmc1_dat1.dat1 INPUT PULLUP | MODE0 */
+			0x364 0x20000	/* mmc1_dat2.dat2 INPUT PULLUP | MODE0 */
+			0x368 0x20000	/* mmc1_dat3.dat3 INPUT PULLUP | MODE0 */
+		>;
+	};
+
 	mcspi1_pins: pinmux_mcspi1_pins {
 		pinctrl-single,pins = <
 			0x3a4 0x40000	/* spi2_clk */
@@ -102,17 +165,6 @@
 		pinctrl-single,pins = <
 			0x3e0 0xe0000	/* uart1_rxd */
 			0x3e4 0xe0000	/* uart1_txd */
-			0x3e8 0x60003	/* uart1_ctsn */
-			0x3ec 0x60003	/* uart1_rtsn */
-		>;
-	};
-
-	uart2_pins: pinmux_uart2_pins {
-		pinctrl-single,pins = <
-			0x3f0 0x60000 /* uart2_rxd */
-			0x3f4 0x60000 /* uart2_txd */
-			0x3f8 0x60000 /* uart2_ctsn */
-			0x3fc 0x60000 /* uart2_rtsn */
 		>;
 	};
 
@@ -293,6 +345,15 @@
 			0xD0 	0x0	/* (PIN_OUTPUT 	   | MUX_MODE0)	gpmc_be0n_cle */
 		>;
 	};
+
+	mcasp3_pins: pinmux_mcasp3_pins {
+		pinctrl-single,pins = <
+			0x324 0x10000	/* mcasp3_aclkx.mcasp3_aclkx	Mode0.Output.PD */
+			0x328 0x10000	/* mcasp3_fsx.mcasp3_fsx	Mode0.Output.PD */
+			0x32c 0x10000	/* mcasp3_axr0.mcasp3_axr0	Mode0.Output.PD */
+			0x330 0x50000	/* mcasp3_axr1.mcasp3_axr1	Mode0.Input.PD */
+		>;
+	};
 };
 
 &i2c1 {
@@ -365,6 +426,7 @@
 						regulator-name = "ldo1";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
 						regulator-boot-on;
 					};
 
@@ -503,6 +565,19 @@
 		atmel,voltage = <2800000>;
 		atmel,orient = <0x4>;
 	};
+
+	tlv320aic3106: tlv320aic3106@18 {
+		compatible = "ti,tlv320aic3106";
+		reg = <0x18>;
+		adc-settle-ms = <40>;
+		status = "okay";
+
+		/* Regulators */
+		AVDD-supply = <&evm_3v3_sw>;
+		IOVDD-supply = <&evm_3v3_sw>;
+		DRVDD-supply = <&evm_3v3_sw>;
+		DVDD-supply = <&aic_dvdd_1v8>;
+	};
 };
 
 &i2c2 {
@@ -514,6 +589,7 @@
 	pcf_hdmi: gpio@26 {
 		compatible = "nxp,pcf8575";
 		reg = <0x26>;
+		lines-initial-states = <0xffef>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
@@ -542,12 +618,6 @@
 	status = "okay";
         pinctrl-names = "default";
         pinctrl-0 = <&uart1_pins>;
-};
-
-&uart2 {
-        status = "okay";
-        pinctrl-names = "default";
-        pinctrl-0 = <&uart2_pins>;
 };
 
 &uart3 {
@@ -595,16 +665,20 @@
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&ldo1_reg>;
+	vmmc-supply = <&evm_3v3_sd>;
+	vmmc_aux-supply = <&ldo1_reg>;
+	pbias-supply = <&pbias_regulator>;
 	bus-width = <4>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "muxpu", "muxpd";
 	pinctrl-0 = <&mmc1_pins>;
+	pinctrl-1 = <&mmc1_muxpu>;
+	pinctrl-2 = <&mmc1_muxpd>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 187 */
 };
 
 &mmc2 {
 	status = "okay";
-	vmmc-supply = <&mmc2_3v3>;
+	vmmc-supply = <&evm_3v3_sw>;
 	bus-width = <8>;
 	ti,non-removable;
 };
@@ -758,4 +832,33 @@
 			reg = <0x00780000 0x0F880000>;
 		};
 	};
+};
+
+&atl_clkin {
+	fck_parent = "dpll_abe_m2_ck";
+	status = "okay";
+
+	atl2 {
+		bws = <DRA7_ATL_WS_MCASP2_FSX>;
+		aws = <DRA7_ATL_WS_MCASP3_FSX>;
+	};
+};
+
+&mcasp3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp3_pins>;
+
+	fck_parent = "atl_clkin2_ck";
+
+	status = "okay";
+
+	op-mode = <0>;          /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 16 serializer */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		1 2 0 0
+		0 0 0 0
+		0 0 0 0
+		0 0 0 0
+	>;
 };

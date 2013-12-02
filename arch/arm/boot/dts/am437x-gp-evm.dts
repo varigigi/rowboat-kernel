@@ -26,6 +26,29 @@
 		enable-active-high;
 	};
 
+	evm_v3p3: tps63031 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_v3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio1 20 0>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	wlcore {
+		compatible = "wlcore";
+		gpio = <55>;
+		pinctrl-names = "default";
+	};
+
 	aliases {
 		display0 = &lcd0;
 		display1 = &hdmi0;
@@ -35,8 +58,6 @@
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		video-source = <&dpi>;
 		data-lines = <24>;
-		gpios = <0>;			    /* No Enable GPIO */
-		activelow_backlight;		    /* LCD backlight is Active low */
 		panel-timing {
 			clock-frequency = <33000000>;
 			hactive = <800>;
@@ -57,6 +78,19 @@
 	hdmi0: connector@1 {
 		compatible = "ti,hdmi_connector";
 		video-source = <&sii9022>;
+	};
+
+	sound {
+		compatible = "ti,da830-evm-audio";
+		ti,model = "AM437x-GP-EVM";
+		ti,audio-codec = <&tlv320aic3106>;
+		ti,mcasp-controller = <&mcasp1>;
+		ti,codec-clock-rate = <12000000>;
+		ti,audio-routing =
+			"Headphone Jack",       "HPLOUT",
+			"Headphone Jack",       "HPROUT",
+			"LINE1L",               "Line In",
+			"LINE1R",               "Line In";
 	};
 
 	matrix_keypad: matrix_keypad@0 {
@@ -85,11 +119,16 @@
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
 		default-brightness-level = <8>;
 	};
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2>;
+		};
+	};
 };
 
 &am43xx_pinmux {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dss_pinctrl>;
+
 	cpsw_default: cpsw_default {
 		pinctrl-single,pins = <
 			/* Slave 1 */
@@ -208,6 +247,95 @@
 			0x264 (PIN_INPUT_PULLUP | MUX_MODE7)  /* spi2_d0.gpio3_22 */
 		>;
 	};
+
+	dcan0_default: dcan0_default_pins {
+		pinctrl-single,pins = <
+			0x178 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* uart1_ctsn.d_can0_tx */
+			0x17c (PIN_INPUT_PULLUP | MUX_MODE2) /* uart1_rtsn.d_can0_rx */
+		>;
+	};
+
+	dcan1_default: dcan1_default_pins {
+		pinctrl-single,pins = <
+			0x180 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* uart1_rxd.d_can1_tx */
+			0x184 (PIN_INPUT_PULLUP | MUX_MODE2) /* uart1_txd.d_can1_rx */
+		>;
+	};
+
+	mcasp1_pins: mcasp1_pins {
+		pinctrl-single,pins = <
+			0x108 (PIN_OUTPUT_PULLDOWN | MUX_MODE4)	/* mii1_col.mcasp1_axr2 */
+			0x10c (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* mii1_crs.mcasp1_aclkx */
+			0x110 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* mii1_rxerr.mcasp1_fsx */
+			0x144 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* rmii1_ref_clk.mcasp1_axr3 */
+		>;
+	};
+
+	mmc3_pins: pinmux_mmc3_pins {
+		pinctrl-single,pins = <
+			0x088 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_csn3.mmc2_cmd  */
+			0x08c (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_clk.mmc2_clk  */
+			0x044 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a1.mmc2_dat0 */
+			0x048 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a2.mmc2_dat1 */
+			0x04c (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a3.mmc2_dat2 */
+			0x078 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_be1n.mmc2_dat3 */
+			0x050 (PIN_OUTPUT | MUX_MODE7)            /*gpmc_a4.gpio1_20 */
+		>;
+	};
+
+	wlirq_pins: pinmux_wlirq_pins {
+		pinctrl-single,pins = <
+			0x05c (PIN_INPUT | WAKEUP_ENABLE | MUX_MODE7)   /*gpmc_a7.gpio1_23 */
+		>;
+	};
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-names = "default";
+        pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <400000>;
+
+	tps65218: tps65218@24 {
+		reg = <0x24>;
+		compatible = "ti,tps65218";
+		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
+		interrupt-parent = <&gic>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		dcdc1: regulator-dcdc1 {
+			compatible = "ti,tps65218-dcdc1";
+			/* VDD_CORE voltage limits min of OPP50 and max of OPP100 */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <912000>;
+			regulator-max-microvolt = <1144000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc2: regulator-dcdc2 {
+			compatible = "ti,tps65218-dcdc2";
+			/* VDD_MPU voltage limits min of OPP50 and max of OPP_NITRO */
+			regulator-name = "vdd_mpu";
+			regulator-min-microvolt = <912000>;
+			regulator-max-microvolt = <1378000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc3: regulator-dcdc3 {
+			compatible = "ti,tps65218-dcdc3";
+		};
+
+		ldo1: regulator-ldo1 {
+			compatible = "ti,tps65218-ldo1";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+	};
 };
 
 &rtc {
@@ -215,6 +343,10 @@
 };
 
 &gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
 	status = "okay";
 };
 
@@ -230,7 +362,13 @@
 	status = "okay";
 };
 
+&dpi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_pinctrl>;
+};
+
 &mac {
+	slaves = <1>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
@@ -249,11 +387,6 @@
 	phy-mode = "rgmii";
 };
 
-&cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
-	phy-mode = "rgmii";
-};
-
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&vmmcsd_fixed>;
@@ -261,6 +394,25 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+};
+
+&mmc3 {
+	status = "okay";
+	dmas = <&edma 32
+		&edma 33>;
+	dma-names = "tx", "rx";
+	vmmc-supply = <&vmmcwl_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc3_pins>;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	ti,non-removable;
+};
+
+&edma {
+	ti,edma-xbar-event-map = <1 32
+				  2 33>;
 };
 
 &i2c0 {
@@ -295,6 +447,19 @@
 		x-size = <1024>;
 		y-size = <600>;
 	};
+
+	tlv320aic3106: tlv320aic3106@1b {
+		compatible = "ti,tlv320aic3106";
+		reg = <0x1b>;
+		status = "okay";
+
+		/* Regulators */
+		AVDD-supply = <&evm_v3p3>;
+		IOVDD-supply = <&evm_v3p3>;
+		DRVDD-supply = <&evm_v3p3>;
+		DVDD-supply = <&ldo1>;
+
+	};
 };
 
 &ecap0 {
@@ -305,4 +470,32 @@
 
 &epwmss0 {
 	status = "okay";
+};
+
+&dcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan0_default>;
+	status = "okay";
+};
+
+&dcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_default>;
+	status = "okay";
+};
+
+&mcasp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp1_pins>;
+
+	status = "okay";
+
+	op-mode = <0>; /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializers */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 1 2
+	>;
+	tx-num-evt = <1>;
+	rx-num-evt = <1>;
 };
