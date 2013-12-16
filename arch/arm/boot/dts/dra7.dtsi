@@ -1059,7 +1059,7 @@
 			reg = <0x4a080000 0x400>;	/* ocp2scp1 */
 
 			usb2_phy1: usb2phy1@4a084000 {
-				compatible = "ti,omap-usb2";
+				compatible = "ti,dra7x-usb2";
 				reg = <0x4a084000 0x400>;
 				ctrl-module = <&omap_control_usb2phy1>;
 				clocks = <&usb_phy1_always_on_clk32k>,
@@ -1070,7 +1070,7 @@
 			};
 
 			usb2_phy2: usb2phy2@4a085000 {
-				compatible = "ti,omap-usb2";
+				compatible = "ti,dra7x-usb2";
 				reg = <0x4a085000 0x400>;
 				ctrl-module = <&omap_control_usb2phy2>;
 				clocks = <&usb_phy2_always_on_clk32k>,
@@ -1313,7 +1313,7 @@
 			compatible = "ti,am3352-elm";
 			/* compatible = "ti,elm"; */
 			reg = <0x48078000 0x2000>;
-			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "elm";
 			status = "disabled";
 		};
@@ -1323,7 +1323,7 @@
 		/* 	compatible = "ti,gpmc"; */
 			ti,hwmods = "gpmc";
 			reg = <0x50000000 0x2000>;
-			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <2>;
 			#address-cells = <2>;

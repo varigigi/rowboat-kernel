@@ -33,22 +33,6 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vmmcwl_fixed: fixedregulator-mmcwl {
-		compatible = "regulator-fixed";
-		regulator-name = "vmmcwl_fixed";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio1 20 0>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-	};
-
-	wlcore {
-		compatible = "wlcore";
-		gpio = <55>;
-		pinctrl-names = "default";
-	};
-
 	aliases {
 		display0 = &lcd0;
 		display1 = &hdmi0;
@@ -188,6 +172,21 @@
 		>;
 	};
 
+	emmc_pins: pinmux_emmc_pins {
+		pinctrl-single,pins = <
+			0x80 (PIN_INPUT_PULLUP | MUX_MODE2) /* gpmc_csn1.mmc1_clk */
+			0x84 (PIN_INPUT_PULLUP | MUX_MODE2) /* gpmc_csn2.mmc1_cmd */
+			0x00 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad0.mmc1_dat0 */
+			0x04 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad1.mmc1_dat1 */
+			0x08 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad2.mmc1_dat2 */
+			0x0c (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad3.mmc1_dat3 */
+			0x10 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad4.mmc1_dat4 */
+			0x14 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad5.mmc1_dat5 */
+			0x18 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad6.mmc1_dat6 */
+			0x1c (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad7.mmc1_dat7 */
+		>;
+	};
+
 	i2c0_pins: pinmux_i2c0_pins {
 		pinctrl-single,pins = <
 			0x188 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)    /* i2c0_sda.i2c0_sda */
@@ -271,21 +270,31 @@
 		>;
 	};
 
-	mmc3_pins: pinmux_mmc3_pins {
+	nand_flash_x8: nand_flash_x8 {
 		pinctrl-single,pins = <
-			0x088 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_csn3.mmc2_cmd  */
-			0x08c (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_clk.mmc2_clk  */
-			0x044 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a1.mmc2_dat0 */
-			0x048 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a2.mmc2_dat1 */
-			0x04c (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_a3.mmc2_dat2 */
-			0x078 (PIN_INPUT_PULLUP | MUX_MODE3)      /*gpmc_be1n.mmc2_dat3 */
-			0x050 (PIN_OUTPUT | MUX_MODE7)            /*gpmc_a4.gpio1_20 */
+			0x26C(PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* spi2_cs0.gpio/eMMCorNANDsel */
+			0x0  (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad0.gpmc_ad0 */
+			0x4  (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad1.gpmc_ad1 */
+			0x8  (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad2.gpmc_ad2 */
+			0xc  (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad3.gpmc_ad3 */
+			0x10 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad4.gpmc_ad4 */
+			0x14 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad5.gpmc_ad5 */
+			0x18 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad6.gpmc_ad6 */
+			0x1c (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* gpmc_ad7.gpmc_ad7 */
+			0x70 (PIN_INPUT_PULLUP | MUX_MODE0)	/* gpmc_wait0.gpmc_wait0 */
+			0x74 (PIN_OUTPUT_PULLUP | MUX_MODE7)	/* gpmc_wpn.gpmc_wpn */
+			0x7c (PIN_OUTPUT | MUX_MODE0)		/* gpmc_csn0.gpmc_csn0  */
+			0x90 (PIN_OUTPUT | MUX_MODE0)		/* gpmc_advn_ale.gpmc_advn_ale */
+			0x94 (PIN_OUTPUT | MUX_MODE0)		/* gpmc_oen_ren.gpmc_oen_ren */
+			0x98 (PIN_OUTPUT | MUX_MODE0)		/* gpmc_wen.gpmc_wen */
+			0x9c (PIN_OUTPUT | MUX_MODE0)		/* gpmc_be0n_cle.gpmc_be0n_cle */
 		>;
 	};
 
-	wlirq_pins: pinmux_wlirq_pins {
+	uart0_pins: uart0_pins {
 		pinctrl-single,pins = <
-			0x05c (PIN_INPUT | WAKEUP_ENABLE | MUX_MODE7)   /*gpmc_a7.gpio1_23 */
+			0x170 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_rxd.uart0_rxd */
+			0x174 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_txd.uart0_txd */
 		>;
 	};
 };
@@ -346,10 +355,6 @@
 	status = "okay";
 };
 
-&gpio1 {
-	status = "okay";
-};
-
 &gpio3 {
 	status = "okay";
 };
@@ -396,23 +401,12 @@
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 };
 
-&mmc3 {
-	status = "okay";
-	dmas = <&edma 32
-		&edma 33>;
-	dma-names = "tx", "rx";
-	vmmc-supply = <&vmmcwl_fixed>;
-	bus-width = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins>;
-	cap-power-off-card;
-	keep-power-in-suspend;
+&mmc2 {
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <8>;
 	ti,non-removable;
-};
-
-&edma {
-	ti,edma-xbar-event-map = <1 32
-				  2 33>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins>;
 };
 
 &i2c0 {
@@ -462,6 +456,14 @@
 	};
 };
 
+&tscadc {
+	status = "okay";
+
+	adc {
+		ti,adc-channels = <0 1 2 3 4 5 6 7>;
+	};
+};
+
 &ecap0 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -498,4 +500,93 @@
 	>;
 	tx-num-evt = <1>;
 	rx-num-evt = <1>;
+};
+
+&elm {
+	status = "okay";
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_flash_x8>;
+	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	nand@0,0 {
+		reg = <0 0 0>; /* CS0, offset 0 */
+		nand-bus-width = <8>;
+		ti,nand-ecc-opt = "bch16";
+		gpmc,device-width = <1>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <160>;
+		gpmc,cs-wr-off-ns = <160>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <24>;
+		gpmc,adv-wr-off-ns = <24>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <20>;
+		gpmc,oe-on-ns = <3>;
+		gpmc,oe-off-ns = <51>;
+		gpmc,access-ns = <40>;
+		gpmc,rd-cycle-ns = <160>;
+		gpmc,wr-cycle-ns = <160>;
+		gpmc,wait-on-read = "true";
+		gpmc,wait-on-write = "true";
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ti,elm-id = <&elm>;
+		/* MTD partition table */
+		partition@0 {
+			label = "SPL";
+			reg = <0x00000000 0x000040000>;
+		};
+		partition@1 {
+			label = "SPL.backup1";
+			reg = <0x00040000 0x00040000>;
+		};
+		partition@2 {
+			label = "SPL.backup2";
+			reg = <0x00080000 0x00040000>;
+		};
+		partition@3 {
+			label = "SPL.backup3";
+			reg = <0x000C0000 0x00040000>;
+		};
+		partition@4 {
+			label = "u-boot";
+			reg = <0x00100000 0x00100000>;
+		};
+		partition@5 {
+			label = "u-boot-spl-os";
+			reg = <0x00200000 0x00080000>;
+		};
+		partition@6 {
+			label = "u-boot-env";
+			reg = <0x00280000 0x00040000>;
+		};
+		partition@7 {
+			label = "u-boot-env.backup1";
+			reg = <0x002C0000 0x00040000>;
+		};
+		partition@8 {
+			label = "kernel";
+			reg = <0x00300000 0x00500000>;
+		};
+		partition@9 {
+			label = "file-system";
+			reg = <0x00800000 0x0F800000>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
 };
