@@ -2073,6 +2073,9 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (of_find_property(np, "cap-power-off-card", NULL))
 		pdata->slots[0].caps |= MMC_CAP_POWER_OFF_CARD;
 
+	if (of_find_property(np, "cap-mmc-dual-data-rate", NULL))
+		pdata->slots[0].caps |= MMC_CAP_1_8V_DDR;
+
 	if (of_find_property(np, "keep-power-in-suspend", NULL))
 		pdata->slots[0].pm_caps |= MMC_PM_KEEP_POWER;
 
@@ -2495,6 +2498,10 @@ static int omap_hsmmc_suspend(struct device *dev)
 		clk_disable_unprepare(host->dbclk);
 err:
 	pm_runtime_put_sync(host->dev);
+
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(host->dev);
+
 	return ret;
 }
 
@@ -2509,6 +2516,9 @@ static int omap_hsmmc_resume(struct device *dev)
 
 	if (host && !host->suspended)
 		return 0;
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(host->dev);
 
 	pm_runtime_get_sync(host->dev);
 
@@ -2547,6 +2557,9 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 	omap_hsmmc_context_save(host);
 	dev_dbg(dev, "disabled\n");
 
+	/* Optionally let pins go into idle state */
+	pinctrl_pm_select_idle_state(host->dev);
+
 	return 0;
 }
 
@@ -2555,6 +2568,10 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 	struct omap_hsmmc_host *host;
 
 	host = platform_get_drvdata(to_platform_device(dev));
+
+	/* go to the default state */
+	pinctrl_pm_select_default_state(host->dev);
+
 	omap_hsmmc_context_restore(host);
 	dev_dbg(dev, "enabled\n");
 

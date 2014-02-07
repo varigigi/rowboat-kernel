@@ -90,6 +90,8 @@ struct dispc_features {
 
 	/* revert to the OMAP4 mechanism of DISPC Smart Standby operation */
 	bool mstandby_workaround:1;
+
+	bool set_max_preload:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -1200,6 +1202,15 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
 			FLD_VAL(low, lo_start, lo_end));
+
+	/*
+	 * configure the preload to the pipeline's high threhold, if HT it's too
+	 * large for the preload field, set the threshold to the maximum value
+	 * that can be held by the preload register
+	 */
+	if (dss_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
+			plane != OMAP_DSS_WB)
+		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
 EXPORT_SYMBOL(dispc_ovl_set_fifo_threshold);
 
@@ -2147,8 +2158,8 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 	*five_taps = false;
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*core_clk = dispc.feat->calc_core_clk(pclk, in_width,
 				in_height, out_width, out_height, mem_to_mem);
 		error = (in_width > maxsinglelinewidth || !*core_clk ||
@@ -2186,8 +2197,8 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
 			in_width, in_height, out_width, out_height, color_mode);
 
@@ -2247,7 +2258,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 {
 	u16 in_width, in_width_max;
 	int decim_x_min = *decim_x;
-	u16 in_height = DIV_ROUND_UP(height, *decim_y);
+	u16 in_height = height / *decim_y;
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
@@ -2266,7 +2277,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 
 	do {
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_width = width / *decim_x;
 	} while (*decim_x <= *x_predecim &&
 			in_width > maxsinglelinewidth && ++*decim_x);
 
@@ -2445,8 +2456,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	if (r)
 		return r;
 
-	in_width = DIV_ROUND_UP(in_width, x_predecim);
-	in_height = DIV_ROUND_UP(in_height, y_predecim);
+	in_width = in_width / x_predecim;
+	in_height = in_height / y_predecim;
 
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY ||
@@ -3525,6 +3536,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
@@ -3544,6 +3556,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
@@ -3563,6 +3576,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap44xx_dispc_feats __initconst = {
@@ -3582,6 +3596,7 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats __initconst = {
@@ -3602,6 +3617,7 @@ static const struct dispc_features omap54xx_dispc_feats __initconst = {
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
 	.mstandby_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static int __init dispc_init_features(struct platform_device *pdev)

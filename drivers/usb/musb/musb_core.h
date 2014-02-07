@@ -295,6 +295,7 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct work_struct	babble_work;
 	u16			hwvers;
 
 	u16			intrrxe;
@@ -423,6 +424,8 @@ struct musb {
 	struct musb_hdrc_config	*config;
 
 	int			xceiv_old_state;
+
+	bool			suspended;	/* controller suspended */
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*debugfs_root;
 #endif

@@ -66,6 +66,15 @@
 			>;
 		};
 
+		uart1_pins: pinmux_uart1_pins {
+			pinctrl-single,pins = <
+				0x178 (PIN_INPUT | MUX_MODE0)			/* uart1_ctsn.uart1_ctsn */
+				0x17C (PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart1_rtsn.uart1_rtsn */
+				0x180 (PIN_INPUT_PULLUP | MUX_MODE0)	/* uart1_rxd.uart1_rxd */
+				0x184 (PIN_OUTPUT_PULLDOWN | MUX_MODE0) 	/* uart1_txd.uart1_txd */
+			>;
+		};
+
 		clkout2_pin: pinmux_clkout2_pin {
 			pinctrl-single,pins = <
 				0x1b4 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)	/* xdma_event_intr1.clkout2 */
@@ -157,7 +166,7 @@
 			>;
 		};
 
-		lcd_pins_s0: lcd_pins_s0 {
+		lcd_pins_default: lcd_pins_default {
 			pinctrl-single,pins = <
 				0x20 0x01	/* gpmc_ad8.lcd_data16, OUTPUT | MODE1 */
 				0x24 0x01	/* gpmc_ad9.lcd_data17, OUTPUT | MODE1 */
@@ -190,12 +199,54 @@
 			>;
 		};
 
-		am335x_evm_audio_pins: am335x_evm_audio_pins {
+		lcd_pins_sleep: lcd_pins_sleep {
 			pinctrl-single,pins = <
-				0x10c (PIN_INPUT_PULLDOWN | MUX_MODE4) /* mii1_rx_dv.mcasp1_aclkx */
-				0x110 (PIN_INPUT_PULLDOWN | MUX_MODE4) /* mii1_txd3.mcasp1_fsx */
+				0x20 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad8.lcd_data16 */
+				0x24 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad9.lcd_data17 */
+				0x28 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad10.lcd_data18 */
+				0x2c (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad11.lcd_data19 */
+				0x30 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad12.lcd_data20 */
+				0x34 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad13.lcd_data21 */
+				0x38 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad14.lcd_data22 */
+				0x3c (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad15.lcd_data23 */
+				0xa0 (PULL_DISABLE | MUX_MODE7)		/* lcd_data0.lcd_data0 */
+				0xa4 (PULL_DISABLE | MUX_MODE7)		/* lcd_data1.lcd_data1 */
+				0xa8 (PULL_DISABLE | MUX_MODE7)		/* lcd_data2.lcd_data2 */
+				0xac (PULL_DISABLE | MUX_MODE7)		/* lcd_data3.lcd_data3 */
+				0xb0 (PULL_DISABLE | MUX_MODE7)		/* lcd_data4.lcd_data4 */
+				0xb4 (PULL_DISABLE | MUX_MODE7)		/* lcd_data5.lcd_data5 */
+				0xb8 (PULL_DISABLE | MUX_MODE7)		/* lcd_data6.lcd_data6 */
+				0xbc (PULL_DISABLE | MUX_MODE7)		/* lcd_data7.lcd_data7 */
+				0xc0 (PULL_DISABLE | MUX_MODE7)		/* lcd_data8.lcd_data8 */
+				0xc4 (PULL_DISABLE | MUX_MODE7)		/* lcd_data9.lcd_data9 */
+				0xc8 (PULL_DISABLE | MUX_MODE7)		/* lcd_data10.lcd_data10 */
+				0xcc (PULL_DISABLE | MUX_MODE7)		/* lcd_data11.lcd_data11 */
+				0xd0 (PULL_DISABLE | MUX_MODE7)		/* lcd_data12.lcd_data12 */
+				0xd4 (PULL_DISABLE | MUX_MODE7)		/* lcd_data13.lcd_data13 */
+				0xd8 (PULL_DISABLE | MUX_MODE7)		/* lcd_data14.lcd_data14 */
+				0xdc (PULL_DISABLE | MUX_MODE7)		/* lcd_data15.lcd_data15 */
+				0xe0 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* lcd_vsync.lcd_vsync, OUTPUT | MODE0 */
+				0xe4 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* lcd_hsync.lcd_hsync */
+				0xe8 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* lcd_pclk.lcd_pclk */
+				0xec (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* lcd_ac_bias_en.lcd_ac_bias_en */
+			>;
+		};
+
+		mcasp1_pins: mcasp1_pins {
+			pinctrl-single,pins = <
+				0x10c (PIN_INPUT_PULLDOWN | MUX_MODE4) /* mii1_crs.mcasp1_aclkx */
+				0x110 (PIN_INPUT_PULLDOWN | MUX_MODE4) /* mii1_rxerr.mcasp1_fsx */
 				0x108 (PIN_OUTPUT_PULLDOWN | MUX_MODE4) /* mii1_col.mcasp1_axr2 */
 				0x144 (PIN_INPUT_PULLDOWN | MUX_MODE4) /* rmii1_ref_clk.mcasp1_axr3 */
+			>;
+		};
+
+		mcasp1_sleep_pins: mcasp1_sleep_pins {
+			pinctrl-single,pins = <
+				0x10c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x110 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x108 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x144 (PIN_INPUT_PULLDOWN | MUX_MODE7)
 			>;
 		};
 
@@ -211,13 +262,11 @@
 			>;
 		};
 
-		/* wl12xx/wl18xx card enable/irq GPIOs. works with ECO board
-		   for wowlan.*/
+		/* wl12xx/wl18xx card enable/irq GPIOs. */
 		wlan_pins: pinmux_wlan_pins {
 			pinctrl-single,pins = <
-				/* TODO: disable pullup when WLAN is off (saves power?) */
-				0x198 0x17	/* mcasp0_axr0.gpio3_16, OUTPUT_PULLUP | MODE7 */
-				0x1B0 0x27	/* xdma_event_intr0.gpio0_19, INPUT | MODE7 */
+				0x40 0x07	/* gpmc_a0.gpio1_16, OUTPUT | MODE7 */
+				0x19C 0x27	/* mcasp0_ahclkr.gpio3_17, INPUT | MODE7 */
 				0x1AC 0x17	/* mcasp0_ahclkx.gpio3_21, OUTPUT_PULLUP | MODE7 */
 			>;
 		};
@@ -227,6 +276,13 @@
 		uart0: serial@44e09000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins>;
+
+			status = "okay";
+		};
+
+		uart1: serial@48022000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_pins>;
 
 			status = "okay";
 		};
@@ -361,7 +417,6 @@
 			nand@0,0 {
 				reg = <0 0 0>; /* CS0, offset 0 */
 				nand-bus-width = <8>;
-				ti,nand-ecc-opt= "bch8";
 				gpmc,device-width = <1>;
 				gpmc,sync-clk-ps = <0>;
 				gpmc,cs-on-ns = <0>;
@@ -385,56 +440,61 @@
 				gpmc,wait-monitoring-ns = <0>;
 				gpmc,wr-access-ns = <40>;
 				gpmc,wr-data-mux-bus-ns = <0>;
-				#address-cells = <1>;
-				#size-cells = <1>;
+				ti,nand-ecc-opt= "bch8";
 				ti,elm-id = <&elm>;
 				/* MTD partition table */
+		                /* All SPL-* partitions are sized to minimal length
+				 * which can be independently programmable. For
+				 * NAND flash this is equal to size of erase-block */
+				#address-cells = <1>;
+				#size-cells = <1>;
 				partition@0 {
-					label = "SPL";
+					label = "NAND.SPL";
 					reg = <0x00000000 0x000020000>;
 				};
 				partition@1 {
-					label = "SPL.backup1";
+					label = "NAND.SPL.backup1";
 					reg = <0x00020000 0x00020000>;
 				};
 				partition@2 {
-					label = "SPL.backup2";
+					label = "NAND.SPL.backup2";
 					reg = <0x00040000 0x00020000>;
 				};
 				partition@3 {
-					label = "SPL.backup3";
-					reg = <0x00060000 0x000A0000>;
+					label = "NAND.SPL.backup3";
+					reg = <0x00060000 0x00020000>;
 				};
 				partition@4 {
-					label = "u-boot";
-					reg = <0x00100000 0x00100000>;
+					label = "NAND.u-boot-spl-os";
+					reg = <0x00080000 0x00040000>;
 				};
 				partition@5 {
-					label = "u-boot-spl-os";
-					reg = <0x00200000 0x00080000>;
+					label = "NAND.u-boot";
+					reg = <0x000C0000 0x00100000>;
 				};
 				partition@6 {
-					label = "u-boot-env";
-					reg = <0x00280000 0x00040000>;
+					label = "NAND.u-boot-env";
+					reg = <0x001C0000 0x00020000>;
 				};
 				partition@7 {
-					label = "u-boot-env.backup1";
-					reg = <0x002c0000 0x00040000>;
+					label = "NAND.u-boot-env.backup1";
+					reg = <0x001E0000 0x00020000>;
 				};
 				partition@8 {
-					label = "kernel";
-					reg = <0x00300000 0x00500000>;
+					label = "NAND.kernel";
+					reg = <0x00200000 0x00800000>;
 				};
 				partition@9 {
-					label = "file-system";
-					reg = <0x00800000 0x0F800000>;
+					label = "NAND.file-system";
+					reg = <0x00A00000 0x0F600000>;
 				};
 			};
 		};
 
 		lcdc: lcdc@0x4830e000 {		
-			pinctrl-names = "default";
-			pinctrl-0 = <&lcd_pins_s0>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcd_pins_default>;
+			pinctrl-1 = <&lcd_pins_sleep>;
 			status = "okay";
 			display-timings {
 				800x480p62 {
@@ -547,7 +607,7 @@
 		compatible = "ti,tilcdc,panel";
 		status = "okay";
 		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pins_s0>;
+		pinctrl-0 = <&lcd_pins_default>;
 		panel-info {
 			ac-bias           = <255>;
 			ac-bias-intrpt    = <0>;
@@ -593,13 +653,26 @@
 		board-ref-clock = <4>;
 	};
 
+	kim {
+		compatible = "kim";
+		nshutdown_gpio = <117>; /* Bank3, pin21 */
+		dev_name = "/dev/ttyO1";
+		flow_cntrl = <1>;
+		baud_rate = <3000000>;
+	};
+
+	btwilink {
+		compatible = "btwilink";
+	};
+
 };
 
 #include "tps65910.dtsi"
 
 &mcasp1 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&am335x_evm_audio_pins>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&mcasp1_pins>;
+		pinctrl-1 = <&mcasp1_sleep_pins>;
 
 		status = "okay";
 

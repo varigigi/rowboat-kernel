@@ -60,7 +60,7 @@
 		ti,audio-codec = <&tlv320aic3106>;
 		ti,mcasp-controller = <&mcasp3>;
 		ti,codec-clock-rate = <5644800>;
-		clocks = <&atl_clkin 2>;
+		clocks = <&atl_clkin2_ck>;
 		clock-names = "ti,codec-clock";
 		ti,audio-routing =
 			"Headphone Jack",       "HPLOUT",
@@ -148,7 +148,6 @@
 			0x3ac 0x40000	/* spi2_d0 */
 			0x3b0 0xc0000	/* spi2_cs0 */
 			0x3b4 0xc0000	/* spi2_cs1 */
-			0x3b8 0xe0006	/* spi2_cs2 */
 			0x3bc 0xe0006	/* spi2_cs3 */
 		>;
 	};
@@ -353,6 +352,15 @@
 			0x328 0x10000	/* mcasp3_fsx.mcasp3_fsx	Mode0.Output.PD */
 			0x32c 0x10000	/* mcasp3_axr0.mcasp3_axr0	Mode0.Output.PD */
 			0x330 0x50000	/* mcasp3_axr1.mcasp3_axr1	Mode0.Input.PD */
+		>;
+	};
+
+	mcasp3_sleep_pins: pinmux_mcasp3_sleep_pins {
+		pinctrl-single,pins = <
+			0x324 (PIN_OFF_NONE)
+			0x328 (PIN_OFF_NONE)
+			0x32c (PIN_OFF_NONE)
+			0x330 (PIN_OFF_NONE)
 		>;
 	};
 
@@ -596,7 +604,7 @@
 	pcf_hdmi: gpio@26 {
 		compatible = "nxp,pcf8575";
 		reg = <0x26>;
-		lines-initial-states = <0xffef>;
+		lines-initial-states = <0xffeb>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
@@ -647,6 +655,54 @@
 		spi-rx-bus-width = <4>;
 		spi-cpol;
 		spi-cpha;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000010000>;
+		};
+		partition@1 {
+			label = "QSPI.SPL.backup1";
+			reg = <0x00010000 0x00010000>;
+		};
+		partition@2 {
+			label = "QSPI.SPL.backup2";
+			reg = <0x00020000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.SPL.backup3";
+			reg = <0x00030000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.u-boot";
+			reg = <0x00040000 0x00180000>;
+		};
+		partition@5 {
+			label = "QSPI.u-boot-spl-os";
+			reg = <0x001c0000 0x00010000>;
+		};
+		partition@6 {
+			label = "QSPI.u-boot-env";
+			reg = <0x001d0000 0x00010000>;
+		};
+		partition@7 {
+			label = "QSPI.u-boot-env.backup1";
+			reg = <0x001e0000 0x0010000>;
+		};
+		partition@8 {
+			label = "QSPI.kernel";
+			reg = <0x001f0000 0x00500000>;
+		};
+		partition@9 {
+			label = "QSPI.file-system";
+			reg = <0x006f0000 0x01910000>;
+		};
 	};
 };
 
@@ -688,6 +744,7 @@
 	vmmc-supply = <&evm_3v3_sw>;
 	bus-width = <8>;
 	ti,non-removable;
+	cap-mmc-dual-data-rate;
 };
 
 &dss {
@@ -700,22 +757,32 @@
 
 &avs_mpu {
 	avs-supply = <&smps123_reg>;
+	/* Account for Palmas accuracy not < 10mV */
+	voltage-tolerance = <1>;
 };
 
 &avs_core {
 	avs-supply = <&smps7_reg>;
+	/* Account for Palmas accuracy not < 10mV */
+	voltage-tolerance = <1>;
 };
 
 &avs_gpu {
 	avs-supply = <&smps6_reg>;
+	/* Account for Palmas accuracy not < 10mV */
+	voltage-tolerance = <1>;
 };
 
 &avs_dspeve {
 	avs-supply = <&smps45_reg>;
+	/* Account for Palmas accuracy not < 10mV */
+	voltage-tolerance = <1>;
 };
 
 &avs_iva {
 	avs-supply = <&smps8_reg>;
+	/* Account for Palmas accuracy not < 10mV */
+	voltage-tolerance = <1>;
 };
 
 &cpu0 {
@@ -779,23 +846,22 @@
 	nand@0,0 {
 		reg = <0 0 0>;
 		nand-bus-width = <16>;
-		ti,nand-ecc-opt = "bch8";
 		gpmc,device-width = <2>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <55>;
-		gpmc,cs-wr-off-ns = <55>;
+		gpmc,cs-rd-off-ns = <40>;
+		gpmc,cs-wr-off-ns = <40>;
 		gpmc,adv-on-ns = <0>;
-		gpmc,adv-rd-off-ns = <55>;
-		gpmc,adv-wr-off-ns = <55>;
+		gpmc,adv-rd-off-ns = <30>;
+		gpmc,adv-wr-off-ns = <30>;
 		gpmc,we-on-ns = <5>;
-		gpmc,we-off-ns = <40>;
+		gpmc,we-off-ns = <25>;
 		gpmc,oe-on-ns = <2>;
-		gpmc,oe-off-ns = <45>;
-		gpmc,access-ns = <40>;
-		gpmc,wr-access-ns = <37>;
-		gpmc,rd-cycle-ns = <55>;
-		gpmc,wr-cycle-ns = <55>;
+		gpmc,oe-off-ns = <20>;
+		gpmc,access-ns = <20>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,rd-cycle-ns = <40>;
+		gpmc,wr-cycle-ns = <40>;
 		gpmc,wait-on-read = "true";
 		gpmc,wait-on-write = "true";
 		gpmc,bus-turnaround-ns = <0>;
@@ -803,55 +869,58 @@
 		gpmc,clk-activation-ns = <0>;
 		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-data-mux-bus-ns = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
+		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		/* MTD partition table */
+		/* All SPL-* partitions are sized to minimal length
+		 * which can be independently programmable. For
+		 * NAND flash this is equal to size of erase-block */
+		#address-cells = <1>;
+		#size-cells = <1>;
 		partition@0 {
-			label = "SPL";
+			label = "NAND.SPL";
 			reg = <0x00000000 0x000020000>;
 		};
 		partition@1 {
-			label = "SPL.backup1";
+			label = "NAND.SPL.backup1";
 			reg = <0x00020000 0x00020000>;
 		};
 		partition@2 {
-			label = "SPL.backup2";
+			label = "NAND.SPL.backup2";
 			reg = <0x00040000 0x00020000>;
 		};
 		partition@3 {
-			label = "SPL.backup3";
-			reg = <0x00060000 0x000A0000>;
+			label = "NAND.SPL.backup3";
+			reg = <0x00060000 0x00020000>;
 		};
 		partition@4 {
-			label = "u-boot";
-			reg = <0x00100000 0x00100000>;
+			label = "NAND.u-boot-spl-os";
+			reg = <0x00080000 0x00040000>;
 		};
 		partition@5 {
-			label = "u-boot-spl-os";
-			reg = <0x00200000 0x00080000>;
+			label = "NAND.u-boot";
+			reg = <0x000C0000 0x00100000>;
 		};
 		partition@6 {
-			label = "u-boot-env";
-			reg = <0x00280000 0x00040000>;
+			label = "NAND.u-boot-env";
+			reg = <0x001C0000 0x00020000>;
 		};
 		partition@7 {
-			label = "u-boot-env.backup1";
-			reg = <0x002c0000 0x00040000>;
+			label = "NAND.u-boot-env.backup1";
+			reg = <0x001E0000 0x00020000>;
 		};
 		partition@8 {
-			label = "kernel";
-			reg = <0x00300000 0x00500000>;
+			label = "NAND.kernel";
+			reg = <0x00200000 0x00800000>;
 		};
 		partition@9 {
-			label = "file-system";
-			reg = <0x00800000 0x0F800000>;
+			label = "NAND.file-system";
+			reg = <0x00A00000 0x0F600000>;
 		};
 	};
 };
 
-&atl_clkin {
-	fck_parent = "dpll_abe_m2_ck";
+&atl {
 	status = "okay";
 
 	atl2 {
@@ -861,8 +930,9 @@
 };
 
 &mcasp3 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mcasp3_pins>;
+	pinctrl-1 = <&mcasp3_sleep_pins>;
 
 	fck_parent = "atl_clkin2_ck";
 

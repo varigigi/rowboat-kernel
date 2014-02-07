@@ -1848,7 +1848,6 @@ static void musb_free(struct musb *musb)
 			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
-	cancel_work_sync(&musb->irq_work);
 
 	musb_host_free(musb);
 }
@@ -1873,13 +1872,16 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 */
 	if (!plat) {
 		dev_dbg(dev, "no platform_data?\n");
-		return -ENODEV;
+		status = -ENODEV;
+		goto fail0;
 	}
 
 	/* allocate */
 	musb = allocate_instance(dev, plat->config, ctrl);
-	if (!musb)
-		return -ENOMEM;
+	if (!musb) {
+		status = -ENOMEM;
+		goto fail0;
+	}
 
 	pm_runtime_use_autosuspend(musb->controller);
 	pm_runtime_set_autosuspend_delay(musb->controller, 200);
@@ -1932,6 +1934,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
 
+	/* Init IRQ workqueue before request_irq */
+	INIT_WORK(&musb->irq_work, musb_irq_work);
+
 	/* setup musb parts of the core (especially endpoints) */
 	status = musb_core_init(plat->config->multipoint
 			? MUSB_CONTROLLER_MHDRC
@@ -1940,9 +1945,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail3;
 
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
-
-	/* Init IRQ workqueue before request_irq */
-	INIT_WORK(&musb->irq_work, musb_irq_work);
 
 	/* attach to the IRQ */
 	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {
@@ -1978,23 +1980,23 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	case MUSB_PORT_MODE_HOST:
 		status = musb_host_setup(musb, plat->power);
 		if (status < 0)
-			goto fail3_5;
+			goto fail3;
 		status = musb_platform_set_mode(musb, MUSB_HOST);
 		break;
 	case MUSB_PORT_MODE_GADGET:
 		status = musb_gadget_setup(musb);
 		if (status < 0)
-			goto fail3_5;
+			goto fail3;
 		status = musb_platform_set_mode(musb, MUSB_PERIPHERAL);
 		break;
 	case MUSB_PORT_MODE_DUAL_ROLE:
 		status = musb_host_setup(musb, plat->power);
 		if (status < 0)
-			goto fail3_5;
+			goto fail3;
 		status = musb_gadget_setup(musb);
 		if (status) {
 			musb_host_cleanup(musb);
-			goto fail3_5;
+			goto fail3;
 		}
 		status = musb_platform_set_mode(musb, MUSB_OTG);
 		break;
@@ -2004,7 +2006,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	}
 
 	if (status < 0)
-		goto fail4;
+		goto fail3;
 
 	status = musb_init_debugfs(musb);
 	if (status < 0)
@@ -2022,27 +2024,11 @@ fail5:
 	musb_exit_debugfs(musb);
 
 fail4:
-	switch (musb->port_mode) {
-	case MUSB_PORT_MODE_HOST:
-		musb_host_cleanup(musb);
-		break;
-	case MUSB_PORT_MODE_GADGET:
-		musb_gadget_cleanup(musb);
-		break;
-	case MUSB_PORT_MODE_DUAL_ROLE:
-		break;
-		musb_gadget_cleanup(musb);
-		musb_host_cleanup(musb);
-	default:
-		break;
-	}
-
-fail3_5:
-	if (musb->irq_wake)
-		disable_irq_wake(musb->nIrq);
-	free_irq(musb->nIrq, musb);
+	musb_gadget_cleanup(musb);
+	musb_host_cleanup(musb);
 
 fail3:
+	cancel_work_sync(&musb->irq_work);
 	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
 fail2_5:
@@ -2055,9 +2041,12 @@ fail2:
 
 fail1:
 	pm_runtime_disable(musb->controller);
-	musb_host_free(musb);
 	dev_err(musb->controller,
 		"musb_init_controller failed with status %d\n", status);
+
+	musb_free(musb);
+
+fail0:
 
 	return status;
 
@@ -2101,6 +2090,8 @@ static int musb_remove(struct platform_device *pdev)
 
 	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
+
+	cancel_work_sync(&musb->irq_work);
 
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
@@ -2186,11 +2177,19 @@ static void musb_restore_context(struct musb *musb)
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *ep_target_regs;
 	void __iomem *epio;
+	u8 power;
 
 	musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
 	musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
 	musb_write_ulpi_buscontrol(musb->mregs, musb->context.busctl);
-	musb_writeb(musb_base, MUSB_POWER, musb->context.power);
+
+	/* Don't affect SUSPENDM/RESUME bits in POWER reg */
+	power = musb_readb(musb_base, MUSB_POWER);
+	power &= MUSB_POWER_SUSPENDM | MUSB_POWER_RESUME;
+	musb->context.power &= ~(MUSB_POWER_SUSPENDM | MUSB_POWER_RESUME);
+	power |= musb->context.power;
+	musb_writeb(musb_base, MUSB_POWER, power);
+
 	musb_writew(musb_base, MUSB_INTRTXE, musb->intrtxe);
 	musb_writew(musb_base, MUSB_INTRRXE, musb->intrrxe);
 	musb_writeb(musb_base, MUSB_INTRUSBE, musb->context.intrusbe);
@@ -2274,8 +2273,13 @@ static int musb_suspend(struct device *dev)
 		 */
 	}
 
-	musb_save_context(musb);
+	if (musb->suspended)
+		goto exit;
 
+	musb_save_context(musb);
+	musb->suspended = true;
+
+exit:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
@@ -2294,7 +2298,15 @@ static int musb_resume_noirq(struct device *dev)
 	 * unconditionally.
 	 */
 
+	if (!musb->suspended)
+		return 0;
+
 	musb_restore_context(musb);
+	musb->suspended = false;
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }
@@ -2303,7 +2315,12 @@ static int musb_runtime_suspend(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
 
+	dev_dbg(dev, "%s\n", __func__);
+	if (musb->suspended)
+		return 0;
+
 	musb_save_context(musb);
+	musb->suspended = true;
 
 	return 0;
 }
@@ -2311,20 +2328,13 @@ static int musb_runtime_suspend(struct device *dev)
 static int musb_runtime_resume(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
-	static int	first = 1;
 
-	/*
-	 * When pm_runtime_get_sync called for the first time in driver
-	 * init,  some of the structure is still not initialized which is
-	 * used in restore function. But clock needs to be
-	 * enabled before any register access, so
-	 * pm_runtime_get_sync has to be called.
-	 * Also context restore without save does not make
-	 * any sense
-	 */
-	if (!first)
-		musb_restore_context(musb);
-	first = 0;
+	dev_dbg(dev, "%s\n", __func__);
+	if (!musb->suspended)
+		return 0;
+
+	musb_restore_context(musb);
+	musb->suspended = false;
 
 	return 0;
 }
@@ -2350,7 +2360,6 @@ static struct platform_driver musb_driver = {
 	},
 	.probe		= musb_probe,
 	.remove		= musb_remove,
-	.shutdown	= musb_shutdown,
 };
 
 /*-------------------------------------------------------------------------*/

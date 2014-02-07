@@ -152,14 +152,6 @@ static inline void am33xx_restart(enum reboot_mode mode, const char *cmd)
 }
 #endif
 
-#ifdef CONFIG_SOC_AM43XX
-void am43xx_restart(enum reboot_mode mode, const char *cmd);
-#else
-static inline void am43xx_restart(enum reboot_mode mode, const char *cmd)
-{
-}
-#endif
-
 #ifdef CONFIG_ARCH_OMAP3
 void omap3xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
@@ -179,7 +171,7 @@ static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 #if defined(CONFIG_SUSPEND)
 void omap2_common_suspend_init(void);
 #else
-inline void omap2_common_suspend_init(void);
+static inline void omap2_common_suspend_init(void)
 {
 }
 #endif
@@ -346,6 +338,8 @@ extern void __iomem *am33xx_dram_sync;
 
 struct omap_hwmod;
 extern int omap_dss_reset(struct omap_hwmod *);
+
+extern void omap_fb_reserve_memblock(void);
 
 /* SoC specific clock initializer */
 extern int (*omap_clk_init)(void);
