@@ -160,7 +160,7 @@
 
 &am43xx_pinmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <&dss_pinctrl &clkout2_pin>;
+	pinctrl-0 = <&clkout2_pin>;
 
 	cpsw_default: cpsw_default {
 		pinctrl-single,pins = <
@@ -306,7 +306,7 @@
 		>;
 	};
 
-	dss_pinctrl: dss_pinctrl {
+	dss_pinctrl_default: dss_pinctrl_default {
 		pinctrl-single,pins = <
 			0x020 (PIN_OUTPUT_PULLUP | MUX_MODE1) /*gpmc ad 8 -> DSS DATA 23 */
 			0x024 (PIN_OUTPUT_PULLUP | MUX_MODE1)
@@ -337,6 +337,40 @@
 			0x0E8 (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS PCLK */
 			0x0EC (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS AC BIAS EN */
 			0x08C (PIN_OUTPUT_PULLUP | MUX_MODE7) /* GPMC CLK -> GPIO 2_1 to select LCD / HDMI */
+		>;
+	};
+
+	dss_pinctrl_sleep: dss_pinctrl_sleep {
+		pinctrl-single,pins = <
+			0x020 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE2)
+			0x024 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE2)
+			0x028 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE2)
+			0x02C (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE2)
+			0x030 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
+			0x034 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
+			0x038 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
+			0x03C (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0)
+			0x0A0 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0A4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0A8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0AC (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0B0 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0B4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0B8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0BC (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0C0 (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0C4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0C8 (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0CC (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0D0 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0D4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0D8 (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0DC (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0E0 (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0E4 (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x0E8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			0x0EC (DS0_PULL_UP_DOWN_EN | PULL_DISABLE | INPUT_EN | MUX_MODE7)
+			0x08C (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 		>;
 	};
 
@@ -494,6 +528,12 @@
 			0x138 (PULL_UP | MUX_MODE7)
 		>;
 	};
+
+	hdq_pins: pinmux_hdq_pins {
+		pinctrl-single,pins = <
+			0x234 (PIN_INPUT_PULLUP | MUX_MODE1)    /* cam1_wen.hdq_gpio */
+		>;
+	};
 };
 
 &gpio0 {
@@ -513,8 +553,9 @@
 };
 
 &dpi {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dss_pinctrl>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dss_pinctrl_default>;
+	pinctrl-1 = <&dss_pinctrl_sleep>;
 };
 
 &qspi {
@@ -558,27 +599,27 @@
 		};
 		partition@4 {
 			label = "QSPI.u-boot";
-			reg = <0x00040000 0x00180000>;
+			reg = <0x00040000 0x00100000>;
 		};
 		partition@5 {
 			label = "QSPI.u-boot-spl-os";
-			reg = <0x001c0000 0x00010000>;
+			reg = <0x00140000 0x00010000>;
 		};
 		partition@6 {
 			label = "QSPI.u-boot-env";
-			reg = <0x001d0000 0x00010000>;
+			reg = <0x00150000 0x00010000>;
 		};
 		partition@7 {
 			label = "QSPI.u-boot-env.backup1";
-			reg = <0x001e0000 0x0010000>;
+			reg = <0x00160000 0x0010000>;
 		};
 		partition@8 {
 			label = "QSPI.kernel";
-			reg = <0x001f0000 0x00500000>;
+			reg = <0x00170000 0x00800000>;
 		};
 		partition@9 {
 			label = "QSPI.file-system";
-			reg = <0x006f0000 0x03910000>;
+			reg = <0x00970000 0x03690000>;
 		};
 	};
 };
@@ -918,4 +959,10 @@
 
 &clkout_32k_mux_ck {
         clock-default =  <&clk_32k_tpm_ck>;
+};
+
+&hdq {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
 };
