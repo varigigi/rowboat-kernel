@@ -440,13 +440,14 @@ int get_var_am33_som_rev(void)
 		if (status) {
 			pr_err("Error requesting som rev gpio: %d\n", status);
 		}
-		subversion = gpio_get_value(AM33_VAR_SOM_REV_BIT2_GPIO)? 0 : 1;
-		som_rev = gpio_get_value(AM33_VAR_SOM_REV_BIT0_GPIO) |
-			(gpio_get_value(AM33_VAR_SOM_REV_BIT1_GPIO) << 1) +
+		subversion = gpio_get_value(AM33_VAR_SOM_REV_BIT2_GPIO) ? 0 : 1;
+		som_rev = (gpio_get_value(AM33_VAR_SOM_REV_BIT0_GPIO) |
+				(gpio_get_value(AM33_VAR_SOM_REV_BIT1_GPIO) << 1)) +
 			subversion;
 
 		gpio_free_array(som_rev_gpios,
 				ARRAY_SIZE(som_rev_gpios));
+
 	}
 
 	return som_rev;
@@ -463,7 +464,6 @@ const char *get_var_am33_som_rev_str(void)
 
 #define VAR_SOM_WLAN_PMENA_GPIO           GPIO_TO_PIN(3, 21)
 #define VAR_SOM_WLAN_IRQ_GPIO             GPIO_TO_PIN(3, 20)
-#define VAR_SOM_BT_PMENA_REV_1_0_GPIO     GPIO_TO_PIN(3, 4)
 #define VAR_SOM_BT_PMENA_GPIO             GPIO_TO_PIN(3, 9)
 
 static struct wl12xx_platform_data var_som_am33_wlan_data = {
@@ -489,13 +489,6 @@ static struct pinmux_config uart1_wl12xx_pin_mux[] = {
 	{"uart1_rtsn.uart1_rtsn", OMAP_MUX_MODE0 | AM33XX_PIN_INPUT_PULLUP},
 	{"uart1_rxd.uart1_rxd", OMAP_MUX_MODE0 | AM33XX_PIN_INPUT_PULLUP},
 	{"uart1_txd.uart1_txd", OMAP_MUX_MODE0 | AM33XX_PULL_ENBL},
-	{NULL, 0},
-};
-
-static struct pinmux_config wl12xx_cb_rev_1_0_pin_mux_var_som[] = {
-	{"mcasp0_axr1.gpio3_20", OMAP_MUX_MODE7 | AM33XX_PIN_INPUT},
-	{"mcasp0_ahclkx.gpio3_21", OMAP_MUX_MODE7 | AM33XX_PIN_OUTPUT},
-	{"mii1_rxdv.gpio3_4", OMAP_MUX_MODE7 | AM33XX_PIN_OUTPUT},
 	{NULL, 0},
 };
 
@@ -870,17 +863,6 @@ static struct ti_st_plat_data wilink_pdata = {
 	.chip_disable = plat_kim_chip_disable,
 };
 
-static struct ti_st_plat_data wilink_rev_1_0_pdata = {
-	.nshutdown_gpio = VAR_SOM_BT_PMENA_REV_1_0_GPIO,
-	.dev_name = "/dev/ttyO1",
-	.flow_cntrl = 1,
-	.baud_rate = 3000000,
-	.suspend = plat_kim_suspend,
-	.resume = plat_kim_resume,
-	.chip_enable = plat_kim_chip_enable,
-	.chip_disable = plat_kim_chip_disable,
-};
-
 static struct platform_device wl12xx_device = {
 	.name       = "kim",
 	.id     = -1,
@@ -895,9 +877,6 @@ static struct platform_device btwilink_device = {
 static inline void __init var_som_init_btwilink(void)
 {
 	pr_info("var_som_am33: bt init\n");
-
-	if (get_var_am33_som_rev() == 0)
-		wl12xx_device.dev.platform_data = &wilink_rev_1_0_pdata;
 
 	platform_device_register(&wl12xx_device);
 	platform_device_register(&btwilink_device);
@@ -937,14 +916,7 @@ static void wl12xx_init(void)
 	struct omap_mmc_platform_data *pdata;
 	int ret;
 
-	if (get_var_am33_som_rev() == 0){
-		setup_pin_mux(wl12xx_cb_rev_1_0_pin_mux_var_som);
-		var_som_am33_wlan_data.bt_enable_gpio = VAR_SOM_BT_PMENA_REV_1_0_GPIO;
-	}
-	else {
-		setup_pin_mux(wl12xx_pin_mux_var_som);
-		var_som_am33_wlan_data.bt_enable_gpio = VAR_SOM_BT_PMENA_GPIO;
-	}
+	setup_pin_mux(wl12xx_pin_mux_var_som);
 
 	if (get_var_am33_som_rev() >= 3) {
 		var_som_am33_wlan_data.board_ref_clock = WL12XX_REFCLOCK_38;
@@ -992,14 +964,22 @@ static void mmc0_init(void)
 #define VAR_SOM_KS8051_PHY_ID       0x00221556
 #define VAR_SOM_KS8051_PHY_MASK     0xffffffff
 
+#define VAR_SOM_KS8081_PHY_ID       0x00221560
+#define VAR_SOM_KS8081_PHY_MASK     0xffffffff
+
 #define VAR_SOM_KSZ9021_PHY_ID      0x00221611
 #define VAR_SOM_KSZ9021_PHY_MASK    0xffffffff
 
 static int var_som_ks8051_phy_fixup(struct phy_device *phydev)
 {
-	if (get_var_am33_som_rev() <= 1)
-		phydev->dev_flags |= MICREL_PHY_50MHZ_CLK;
+	/* override strap options, set RMII mode */
+	phy_write(phydev, 0x16, 0x2);
 
+	return 0;
+}
+
+static int var_som_ks8081_phy_fixup(struct phy_device *phydev)
+{
 	/* override strap options, set RMII mode */
 	phy_write(phydev, 0x16, 0x2);
 
@@ -1021,8 +1001,6 @@ static int var_som_ksz9021_phy_fixup(struct phy_device *phydev)
 
 static void ethernet_init(void)
 {
-	int mode;
-
 	/* Setup fallback MAC addresses, used only if eFuse MACID is invalid.
 	 */
 	am335x_mac_addr[0][0]=0xF8;
@@ -1043,13 +1021,13 @@ static void ethernet_init(void)
 	phy_register_fixup_for_uid(VAR_SOM_KS8051_PHY_ID, VAR_SOM_KS8051_PHY_MASK,
 				   var_som_ks8051_phy_fixup);
 
+	phy_register_fixup_for_uid(VAR_SOM_KS8081_PHY_ID, VAR_SOM_KS8081_PHY_MASK,
+				   var_som_ks8081_phy_fixup);
+
 	phy_register_fixup_for_uid(VAR_SOM_KSZ9021_PHY_ID, VAR_SOM_KSZ9021_PHY_MASK,
 				   var_som_ksz9021_phy_fixup);
 
-	mode = (get_var_am33_som_rev() >= 2)
-		? AM33XX_CPSW_MODE_VAR2 : AM33XX_CPSW_MODE_VAR;
-
-	am33xx_cpsw_init(mode, "0:01", "0:07");
+	am33xx_cpsw_init(AM33XX_CPSW_MODE_VAR, "0:01", "0:07");
 }
 
 static struct regulator_init_data am335x_dummy = {
@@ -1256,47 +1234,6 @@ static void __init clkout1_enable(void)
 	setup_pin_mux(clkout1_pin_mux);
 }
 
-/* Enable clkout2 */
-static struct pinmux_config clkout2_pin_mux[] = {
-	{"xdma_event_intr1.clkout2", OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT},
-	{NULL, 0},
-};
-
-static void __init clkout2_enable(void)
-{
-	struct clk *ck_32;
-	void __iomem *base;
-
-	base = ioremap(AM33XX_RTC_BASE, SZ_4K);
-
-	if (WARN_ON(!base)) {
-		pr_err("Failed to ioremap RTC base addr\n");
-		return;
-	}
-
-	/* Unlock the rtc's registers */
-	writel(0x83e70b13, base + 0x6c);
-	writel(0x95a4f1e0, base + 0x70);
-
-	/* Enable the 32K OSc */
-	writel(0x48, base + 0x54);
-
-	iounmap(base);
-
-	ck_32 = clk_get(NULL, "clkout2_ck");
-	if (IS_ERR(ck_32)) {
-		pr_err("32k: Cannot Get Clock\n");
-		return;
-	}
-
-	if (clk_enable(ck_32)) {
-		pr_err("32k: Clock Enable Failed\n");
-		return;
-	}
-
-	setup_pin_mux(clkout2_pin_mux);
-}
-
 static struct resource am33xx_cpuidle_resources[] = {
 	{
 		.start		= AM33XX_EMIF0_BASE,
@@ -1349,8 +1286,12 @@ static void __init var_am335x_som_init(void)
 	uart_init();
 	printk ("Variscite AM33 SOM revision %s detected\n",
 			get_var_am33_som_rev_str());
+
+	if (get_var_am33_som_rev() < 2)
+		pr_err("CRITICAL: SOM REVISION %s IS NOT SUPPORTED !!!\n", 
+				get_var_am33_som_rev_str());
+
 	clkout1_enable(); /* Required by Audio codec */
-	clkout2_enable(); /* Required by WLAN module */
 	mmc1_wl12xx_init();
 	mmc0_init();
 	uart1_wl12xx_init();
