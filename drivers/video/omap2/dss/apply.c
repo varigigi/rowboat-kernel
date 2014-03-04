@@ -1037,10 +1037,16 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 	if (!op->enabled && !op->enabling)
 		return;
 
+	if (dss_has_feature(FEAT_MEM_BANDWIDTH_BUG)) {
+		use_fifo_merge = true;
+		dispc_enable_fifomerge(use_fifo_merge);
+	}
+
 	dispc_ovl_compute_fifo_thresholds(ovl->id, &fifo_low, &fifo_high,
 			use_fifo_merge, ovl_manual_update(ovl));
 
 	dss_apply_ovl_fifo_thresholds(ovl, fifo_low, fifo_high);
+
 }
 
 static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)

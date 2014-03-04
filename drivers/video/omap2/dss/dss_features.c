@@ -589,6 +589,7 @@ static const enum dss_feat_id am43xx_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
+	FEAT_MEM_BANDWIDTH_BUG,
 };
 
 static const enum dss_feat_id omap3630_dss_feat_list[] = {

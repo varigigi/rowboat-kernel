@@ -64,6 +64,9 @@ enum dss_feat_id {
 	FEAT_DSI_PLL_SELFREQDCO,
 	FEAT_DSI_PLL_REFSEL,
 	FEAT_DSI_PHY_DCC,
+	/* When DSS has to be used with all FIFO's merged */
+	/* due to bandwidth constraints */
+	FEAT_MEM_BANDWIDTH_BUG,
 };
 
 /* DSS register field id */

@@ -1267,7 +1267,10 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		*fifo_low = 0;
 		*fifo_high = burst_size;
 	} else {
-		*fifo_low = ovl_fifo_size - burst_size;
+		if(dss_has_feature(FEAT_MEM_BANDWIDTH_BUG))
+			*fifo_low = total_fifo_size - burst_size;
+		else
+			*fifo_low = ovl_fifo_size - burst_size;
 		*fifo_high = total_fifo_size - buf_unit;
 	}
 }
